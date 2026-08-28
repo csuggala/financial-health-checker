@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Health Checker — Result Catalyst</title>
+<script src="jspdf.min.js"></script>
+<script src="jspdf.autotable.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F1F5F9; color: #1E293B; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; padding: 2rem 1.5rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+.header { text-align: center; margin-bottom: 2rem; }
+.header h1 { font-size: 28px; font-weight: 700; color: #0F172A; margin-bottom: 6px; letter-spacing: -0.02em; }
+.header p { font-size: 16px; color: #64748B; max-width: 600px; margin: 0 auto; }
+.progress { display: flex; justify-content: center; align-items: center; gap: 0; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 4px; }
+.step { display: flex; align-items: center; gap: 8px; }
+.step-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; border: 2px solid #CBD5E1; color: #94A3B8; background: #fff; transition: all 0.3s; }
+.step-num.active { background: #4F46E5; border-color: #4F46E5; color: #fff; }
+.step-num.done { background: #22C55E; border-color: #22C55E; color: #fff; }
+.step-label { font-size: 14px; color: #94A3B8; font-weight: 500; }
+.step-label.active { color: #4F46E5; font-weight: 600; }
+.step-label.done { color: #22C55E; }
+.step-line { width: 40px; height: 2px; background: #CBD5E1; margin: 0 4px; }
+.step-line.done { background: #22C55E; }
+.page { display: none; }
+.page.active { display: block; }
+.card { background: #fff; border: 1px solid #E2E8F0; border-radius: 14px; padding: 1.75rem; margin-bottom: 1.25rem; }
+.card-title { font-size: 20px; font-weight: 700; color: #0F172A; margin-bottom: 6px; }
+.card-sub { font-size: 15px; color: #64748B; margin-bottom: 1.25rem; line-height: 1.6; }
+.section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #4F46E5; margin-bottom: 1rem; margin-top: 1.25rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 14px; font-weight: 600; color: #334155; }
+.field label .req { color: #EF4444; margin-left: 3px; }
+.field input, .field select, .field textarea { padding: 10px 13px; font-size: 15px; border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC; color: #1E293B; font-family: inherit; outline: none; transition: border-color 0.2s; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #4F46E5; background: #fff; }
+.field input.invalid, .field select.invalid { border-color: #EF4444; background: #FEF2F2; }
+.field-error { font-size: 12px; color: #EF4444; display: none; }
+.field-error.show { display: block; }
+.hint { font-size: 13px; color: #94A3B8; }
+.btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+button.btn { padding: 14px 28px !important; font-size: 16px !important; font-weight: 600 !important; cursor: pointer !important; border-radius: 10px !important; border: 1px solid transparent !important; transition: all 0.2s; display: inline-flex !important; align-items: center; gap: 6px; }
+button.btn-primary { background: #4F46E5 !important; color: #fff !important; border-color: #4F46E5 !important; }
+button.btn-primary:hover { background: #4338CA !important; }
+button.btn-primary:disabled { opacity: 0.5 !important; cursor: not-allowed !important; }
+button.btn-secondary { background: #fff !important; color: #475569 !important; border: 1px solid #CBD5E1 !important; }
+button.btn-secondary:hover { background: #F8FAFC !important; }
+button.btn-success { background: #4F46E5 !important; color: #fff !important; }
+button.btn.btn-full { width: 100% !important; justify-content: center !important; }
+.assessment-toggle { display: flex; gap: 12px; margin-bottom: 1rem; }
+.toggle-btn { flex: 1; padding: 14px; border: 2px solid #E2E8F0; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; transition: all 0.2s; }
+.toggle-btn.active { border-color: #4F46E5; background: #EEF2FF; }
+.toggle-btn .toggle-title { font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 4px; }
+.toggle-btn.active .toggle-title { color: #4F46E5; }
+.toggle-btn .toggle-desc { font-size: 13px; color: #64748B; }
+.upload-zone { border: 2px dashed #CBD5E1; border-radius: 12px; padding: 2rem; text-align: center; background: #F8FAFC; cursor: pointer; transition: all 0.2s; position: relative; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #4F46E5; background: #EEF2FF; }
+.upload-zone.uploaded { border-color: #22C55E; background: #F0FDF4; border-style: solid; }
+.upload-zone.error { border-color: #EF4444; background: #FEF2F2; }
+.upload-icon { font-size: 32px; margin-bottom: 10px; }
+.upload-title { font-size: 15px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.upload-sub { font-size: 13px; color: #64748B; margin-bottom: 12px; }
+.upload-input { display: none; }
+.upload-btn { display: inline-block; background: #EEF2FF; color: #4F46E5; border: 1px solid #C7D2FE; padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.upload-status { margin-top: 10px; font-size: 13px; }
+.upload-status.success { color: #16A34A; }
+.upload-status.error { color: #DC2626; }
+.paste-area { width: 100%; min-height: 100px; padding: 10px; font-size: 14px; border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC; color: #1E293B; font-family: inherit; resize: vertical; margin-top: 10px; }
+.extraction-result { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.extraction-result.warning { background: #FFFBEB; border-color: #FDE68A; }
+.extraction-result.error { background: #FEF2F2; border-color: #FECACA; }
+.extraction-title { font-size: 14px; font-weight: 700; color: #15803D; margin-bottom: 4px; }
+.extraction-result.warning .extraction-title { color: #B45309; }
+.extraction-result.error .extraction-title { color: #DC2626; }
+.extraction-fields { font-size: 13px; color: #166534; }
+.extraction-result.warning .extraction-fields { color: #92400E; }
+.confidence-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+.confidence-high { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+.confidence-medium { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+.confidence-low { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(241,245,249,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+.loading-spinner { width: 48px; height: 48px; border: 4px solid #E2E8F0; border-top-color: #4F46E5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 18px; font-weight: 600; color: #1E293B; margin-bottom: 8px; }
+.loading-sub { font-size: 14px; color: #64748B; }
+.score-circle { width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+.score-number { font-size: 32px; font-weight: 800; line-height: 1; }
+.score-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.score-excellent { background: #F0FDF4; border: 3px solid #22C55E; color: #16A34A; }
+.score-good { background: #F0FDF4; border: 3px solid #86EFAC; color: #16A34A; }
+.score-moderate { background: #FFFBEB; border: 3px solid #FCD34D; color: #B45309; }
+.score-at-risk { background: #FEF2F2; border: 3px solid #FCA5A5; color: #DC2626; }
+.score-critical { background: #FEF2F2; border: 3px solid #EF4444; color: #B91C1C; }
+.category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 1.5rem; }
+.category-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; text-align: center; }
+.category-name { font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.category-score { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+.category-benchmark { font-size: 12px; color: #94A3B8; margin-bottom: 4px; }
+.category-trend { font-size: 13px; font-weight: 600; }
+.trend-up { color: #16A34A; }
+.trend-down { color: #DC2626; }
+.trend-stable { color: #94A3B8; }
+.color-excellent { color: #16A34A; }
+.color-good { color: #22C55E; }
+.color-moderate { color: #B45309; }
+.color-at-risk { color: #DC2626; }
+.color-critical { color: #B91C1C; }
+.executive-summary { background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 12px; padding: 20px; margin-bottom: 1.5rem; }
+.exec-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #4F46E5; margin-bottom: 8px; }
+.exec-text { font-size: 16px; color: #1E293B; line-height: 1.7; }
+.risk-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #F1F5F9; }
+.risk-item:last-child { border-bottom: none; }
+.risk-severity { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
+.severity-high { background: #FEF2F2; color: #DC2626; }
+.severity-medium { background: #FFFBEB; color: #B45309; }
+.severity-low { background: #F0FDF4; color: #16A34A; }
+.risk-text { font-size: 15px; color: #334155; }
+.rec-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #F1F5F9; }
+.rec-item:last-child { border-bottom: none; }
+.rec-num { width: 28px; height: 28px; border-radius: 50%; background: #4F46E5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.rec-content { flex: 1; }
+.rec-text { font-size: 15px; color: #334155; margin-bottom: 4px; }
+.rec-meta { font-size: 13px; color: #94A3B8; }
+.metric-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #F1F5F9; font-size: 14px; }
+.metric-row:last-child { border-bottom: none; }
+.metric-name { color: #475569; }
+.metric-value { font-weight: 600; color: #0F172A; }
+.metric-benchmark { font-size: 12px; color: #94A3B8; }
+.status-good { color: #16A34A; }
+.status-watch { color: #B45309; }
+.status-risk { color: #DC2626; }
+.disclaimer { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; font-size: 14px; color: #92400E; margin-top: 1.5rem; }
+.rule40 { background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 1rem; }
+.rule40-score { font-size: 28px; font-weight: 800; color: #4F46E5; }
+.rule40-text { font-size: 14px; color: #475569; }
+.footer { text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #E2E8F0; font-size: 13px; color: #94A3B8; }
+.tabs { display: flex; gap: 4px; margin-bottom: 1rem; border-bottom: 2px solid #E2E8F0; }
+.tab { padding: 10px 16px; font-size: 14px; font-weight: 600; color: #94A3B8; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: #4F46E5; border-bottom-color: #4F46E5; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.or-divider { text-align: center; color: #94A3B8; font-size: 13px; margin: 10px 0; }
+.collapsible-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 12px 0; border-top: 1px solid #E2E8F0; margin-top: 8px; }
+.collapsible-header h4 { font-size: 14px; font-weight: 600; color: #475569; }
+.collapsible-content { display: none; padding-top: 12px; }
+.collapsible-content.open { display: block; }
+@media (max-width: 640px) { .form-grid, .form-grid.three { grid-template-columns: 1fr; } .category-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>💰 Financial Health Checker</h1>
+    <p>Upload your financial statements and get a structured health assessment with industry benchmarks and board-ready insights.</p>
+  </div>
+
+  <div class="progress" id="progress-bar">
+    <div class="step"><div class="step-num active" id="sn1">1</div><span class="step-label active" id="sl1">Context</span></div>
+    <div class="step-line" id="line1"></div>
+    <div class="step"><div class="step-num" id="sn2">2</div><span class="step-label" id="sl2">Documents</span></div>
+    <div class="step-line" id="line2"></div>
+    <div class="step"><div class="step-num" id="sn3">3</div><span class="step-label" id="sl3">Data</span></div>
+    <div class="step-line" id="line3"></div>
+    <div class="step"><div class="step-num" id="sn4">4</div><span class="step-label" id="sl4">Results</span></div>
+  </div>
+
+  <!-- STEP 1: CONTEXT -->
+  <div class="page active" id="page1">
+    <div class="card">
+      <div class="card-title">Tell us about your organization</div>
+      <div class="card-sub">This context helps benchmark your results against industry norms and company stage.</div>
+
+      <div class="section-label">Organization profile</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Industry <span class="req">*</span></label>
+          <select id="ctx-industry">
+            <option value="">Select industry</option>
+            <option>Technology / SaaS</option>
+            <option>Financial Services</option>
+            <option>Healthcare</option>
+            <option>Retail / E-commerce</option>
+            <option>Manufacturing</option>
+            <option>Professional Services</option>
+            <option>Media & Entertainment</option>
+            <option>Real Estate</option>
+            <option>Energy & Utilities</option>
+            <option>Non-profit</option>
+            <option>Other</option>
+          </select>
+          <div class="field-error" id="err-industry">Required</div>
+        </div>
+        <div class="field">
+          <label>Company size / stage <span class="req">*</span></label>
+          <select id="ctx-size">
+            <option value="">Select size</option>
+            <option>Pre-revenue startup</option>
+            <option>Early stage (under $1M ARR)</option>
+            <option>Growth stage ($1M-$10M ARR)</option>
+            <option>Scale-up ($10M-$50M ARR)</option>
+            <option>Mid-market ($50M-$500M revenue)</option>
+            <option>Enterprise ($500M+ revenue)</option>
+          </select>
+          <div class="field-error" id="err-size">Required</div>
+        </div>
+        <div class="field">
+          <label>Business age <span class="req">*</span></label>
+          <select id="ctx-age">
+            <option value="">Select age</option>
+            <option>Less than 1 year</option>
+            <option>1-3 years</option>
+            <option>3-5 years</option>
+            <option>5-10 years</option>
+            <option>10+ years</option>
+          </select>
+          <div class="field-error" id="err-age">Required</div>
+        </div>
+        <div class="field">
+          <label>Funding stage <span class="req">*</span></label>
+          <select id="ctx-funding">
+            <option value="">Select stage</option>
+            <option>Bootstrapped / Self-funded</option>
+            <option>Pre-seed / Seed</option>
+            <option>Series A</option>
+            <option>Series B</option>
+            <option>Series C+</option>
+            <option>Profitable / Cash flow positive</option>
+            <option>Public company</option>
+          </select>
+          <div class="field-error" id="err-funding">Required</div>
+        </div>
+        <div class="field">
+          <label>Current period <span class="req">*</span></label>
+          <input type="text" id="ctx-period" placeholder="e.g. Q2 2026 or FY2025">
+          <div class="field-error" id="err-period">Required</div>
+        </div>
+        <div class="field">
+          <label>Prior period <span class="hint">(for trend analysis)</span></label>
+          <input type="text" id="ctx-prior" placeholder="e.g. Q1 2026 or FY2024">
+        </div>
+        <div class="field full">
+          <label>Known financial pressures or events</label>
+          <input type="text" id="ctx-pressures" placeholder="e.g. Recent acquisition, customer churn, supply chain issues, restructuring">
+        </div>
+      </div>
+
+      <div class="section-label">Assessment type</div>
+      <div class="assessment-toggle">
+        <div class="toggle-btn active" id="toggle-quick" onclick="setAssessment('quick')">
+          <div class="toggle-title">⚡ Quick Assessment</div>
+          <div class="toggle-desc">18 core fields · 5 min · Directional health check</div>
+        </div>
+        <div class="toggle-btn" id="toggle-full" onclick="setAssessment('full')">
+          <div class="toggle-title">📊 Full Assessment</div>
+          <div class="toggle-desc">44 fields · 15 min · Board-ready analysis</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goToStep2()">Continue → Documents</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: DOCUMENTS -->
+  <div class="page" id="page2">
+    <div class="card">
+      <div class="card-title">Upload your financial statements</div>
+      <div class="card-sub">Upload both for the most complete assessment. We'll only ask for data we couldn't extract.</div>
+
+      <div class="form-grid">
+        <!-- P&L Upload -->
+        <div>
+          <div class="section-label">P&L Statement</div>
+          <div class="upload-zone" id="pl-zone" onclick="document.getElementById('pl-file').click()" ondragover="handleDrag(event,'pl')" ondrop="handleDrop(event,'pl')">
+            <div class="upload-icon">📄</div>
+            <div class="upload-title">Income Statement / P&L</div>
+            <div class="upload-sub">PDF, or paste text below</div>
+            <div class="upload-btn">Choose file</div>
+            <input type="file" class="upload-input" id="pl-file" accept=".pdf,.txt" onchange="handleFile(event,'pl')">
+            <div class="upload-status" id="pl-status"></div>
+          </div>
+          <div class="or-divider">— or paste text —</div>
+          <textarea class="paste-area" id="pl-paste" placeholder="Paste your P&L / income statement text here..." oninput="handlePaste('pl')"></textarea>
+        </div>
+
+        <!-- Balance Sheet Upload -->
+        <div>
+          <div class="section-label">Balance Sheet</div>
+          <div class="upload-zone" id="bs-zone" onclick="document.getElementById('bs-file').click()" ondragover="handleDrag(event,'bs')" ondrop="handleDrop(event,'bs')">
+            <div class="upload-icon">📊</div>
+            <div class="upload-title">Balance Sheet</div>
+            <div class="upload-sub">PDF, or paste text below</div>
+            <div class="upload-btn">Choose file</div>
+            <input type="file" class="upload-input" id="bs-file" accept=".pdf,.txt" onchange="handleFile(event,'bs')">
+            <div class="upload-status" id="bs-status"></div>
+          </div>
+          <div class="or-divider">— or paste text —</div>
+          <textarea class="paste-area" id="bs-paste" placeholder="Paste your balance sheet text here..." oninput="handlePaste('bs')"></textarea>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goToStep3()">Continue → Enter Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: DATA ENTRY -->
+  <div class="page" id="page3">
+    <div class="card">
+      <div class="card-title">Financial data</div>
+      <div class="card-sub" id="step3-sub">Enter the financial figures for your assessment.</div>
+
+      <!-- Extraction results -->
+      <div id="extraction-results"></div>
+
+      <!-- Dynamic form -->
+      <div id="financial-form"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+        <button class="btn btn-primary" onclick="runAssessment()">Run assessment →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: RESULTS -->
+  <div class="page" id="page4">
+    <div id="results-content"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="startOver()">← Start over</button>
+      <button class="btn btn-primary" onclick="downloadReport()">⬇ Download PDF report</button>
+    </div>
+    <div class="disclaimer">
+      <strong>⚠ Important:</strong> This assessment is AI-generated based on the data provided. It is intended to support decision-making and does not constitute professional financial, legal, or investment advice. Always consult a qualified financial advisor for material decisions.
+    </div>
+    <div class="footer">Financial Health Checker · Result Catalyst · Built by Chandana Suggala<br><span style="font-size:12px">© 2026 Chandana Suggala. All rights reserved.</span></div>
+  </div>
+
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading" style="display:none">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Analyzing financial data...</div>
+  <div class="loading-sub" id="loading-sub">This usually takes 15-20 seconds</div>
+</div>
+
+<script>
+var assessmentType = 'quick';
+var plData = null; // extracted P&L data
+var bsData = null; // extracted Balance Sheet data
+var assessmentResult = null;
+var context = {};
+
+var QUICK_FIELDS = [
+  'revenue','revenue_prior','net_income','gross_margin_pct','operating_margin_pct',
+  'cash_balance','cash_runway_months','current_assets','current_liabilities',
+  'total_debt','revenue_growth_pct','total_equity','total_assets','ebitda',
+  'revenue_concentration','funding_stage_input','arr_mrr','industry_input'
+];
+
+var FULL_FIELDS = [
+  'revenue','revenue_prior','revenue_growth_pct','gross_profit','gross_margin_pct',
+  'cogs','operating_expenses','operating_margin_pct','ebitda','net_income','net_margin_pct',
+  'cash_balance','burn_rate_monthly','cash_runway_months','cash_flow_operations','free_cash_flow',
+  'ar_amount','ar_days','ap_amount','ap_days',
+  'total_assets','current_assets','total_liabilities','current_liabilities',
+  'total_debt','total_equity','working_capital','debt_to_equity','deferred_revenue',
+  'revenue_concentration','recurring_pct','arr_mrr','arr_mrr_type','nrr_pct','grr_pct',
+  'customer_count','customers_100k','share_based_comp',
+  'fixed_variable_split','headcount_cost_pct','top_cost_categories','cac_payback'
+];
+
+var FIELD_DEFS = {
+  revenue: { label: 'Revenue — current period', type: 'number', req: true, hint: 'Total revenue for the period', prefix: '$' },
+  revenue_prior: { label: 'Revenue — prior period', type: 'number', req: false, hint: 'For trend analysis', prefix: '$' },
+  revenue_growth_pct: { label: 'Revenue growth rate', type: 'number', req: true, hint: 'YoY or period-over-period %', suffix: '%' },
+  gross_profit: { label: 'Gross profit', type: 'number', req: false, prefix: '$' },
+  gross_margin_pct: { label: 'Gross margin %', type: 'number', req: true, suffix: '%' },
+  cogs: { label: 'Cost of goods sold (COGS)', type: 'number', req: false, prefix: '$' },
+  operating_expenses: { label: 'Operating expenses (OpEx)', type: 'number', req: false, prefix: '$' },
+  operating_margin_pct: { label: 'Operating margin %', type: 'number', req: true, suffix: '%' },
+  ebitda: { label: 'EBITDA', type: 'number', req: true, prefix: '$' },
+  net_income: { label: 'Net income / profit', type: 'number', req: true, hint: 'Use negative for a loss', prefix: '$' },
+  net_margin_pct: { label: 'Net margin %', type: 'number', req: false, suffix: '%' },
+  cash_balance: { label: 'Current cash balance', type: 'number', req: true, prefix: '$' },
+  burn_rate_monthly: { label: 'Monthly burn rate', type: 'number', req: false, prefix: '$' },
+  cash_runway_months: { label: 'Cash runway (months)', type: 'number', req: true },
+  cash_flow_operations: { label: 'Cash flow from operations', type: 'number', req: false, prefix: '$' },
+  free_cash_flow: { label: 'Free cash flow', type: 'number', req: false, prefix: '$' },
+  ar_amount: { label: 'Accounts receivable — amount', type: 'number', req: false, prefix: '$' },
+  ar_days: { label: 'Accounts receivable — avg days outstanding', type: 'number', req: false, suffix: 'days' },
+  ap_amount: { label: 'Accounts payable — amount', type: 'number', req: false, prefix: '$' },
+  ap_days: { label: 'Accounts payable — avg days outstanding', type: 'number', req: false, suffix: 'days' },
+  total_assets: { label: 'Total assets', type: 'number', req: true, prefix: '$' },
+  current_assets: { label: 'Current assets', type: 'number', req: true, prefix: '$' },
+  total_liabilities: { label: 'Total liabilities', type: 'number', req: false, prefix: '$' },
+  current_liabilities: { label: 'Current liabilities', type: 'number', req: true, prefix: '$' },
+  total_debt: { label: 'Total debt', type: 'number', req: true, prefix: '$' },
+  total_equity: { label: 'Total equity', type: 'number', req: true, prefix: '$' },
+  working_capital: { label: 'Working capital', type: 'number', req: false, prefix: '$' },
+  debt_to_equity: { label: 'Debt-to-equity ratio', type: 'number', req: false },
+  deferred_revenue: { label: 'Deferred revenue', type: 'number', req: false, prefix: '$' },
+  revenue_concentration: { label: 'Revenue concentration — % from top 3 customers', type: 'number', req: true, suffix: '%' },
+  recurring_pct: { label: 'Recurring vs one-time revenue split', type: 'number', req: false, hint: '% that is recurring', suffix: '%' },
+  arr_mrr: { label: 'ARR / MRR', type: 'number', req: false, prefix: '$' },
+  arr_mrr_type: { label: 'ARR or MRR?', type: 'select', options: ['ARR (Annual)', 'MRR (Monthly)'], req: false },
+  nrr_pct: { label: 'Net Revenue Retention (NRR) %', type: 'number', req: false, suffix: '%', hint: 'Revenue retained + expanded from existing customers' },
+  grr_pct: { label: 'Gross Revenue Retention (GRR) %', type: 'number', req: false, suffix: '%' },
+  customer_count: { label: 'Total customer count', type: 'number', req: false },
+  customers_100k: { label: 'Customers with $100K+ ARR', type: 'number', req: false },
+  share_based_comp: { label: 'Share-based compensation', type: 'number', req: false, prefix: '$' },
+  fixed_variable_split: { label: 'Fixed vs variable cost split', type: 'number', req: false, hint: '% of costs that are fixed', suffix: '%' },
+  headcount_cost_pct: { label: 'Headcount cost as % of revenue', type: 'number', req: false, suffix: '%' },
+  top_cost_categories: { label: 'Top 3 cost categories', type: 'text', req: false, hint: 'e.g. Salaries, Cloud infrastructure, Sales & Marketing' },
+  cac_payback: { label: 'CAC payback period', type: 'number', req: false, suffix: 'months', hint: 'Months to recover customer acquisition cost' }
+};
+
+var FIELD_SECTIONS = {
+  'Liquidity & Cash Flow': ['cash_balance','burn_rate_monthly','cash_runway_months','cash_flow_operations','free_cash_flow','ar_amount','ar_days','ap_amount','ap_days'],
+  'Profitability': ['revenue','revenue_prior','revenue_growth_pct','gross_profit','gross_margin_pct','cogs','operating_expenses','operating_margin_pct','ebitda','net_income','net_margin_pct'],
+  'Balance Sheet': ['total_assets','current_assets','total_liabilities','current_liabilities','total_debt','total_equity','working_capital','debt_to_equity','deferred_revenue'],
+  'Revenue Health': ['revenue_concentration','recurring_pct','arr_mrr','arr_mrr_type','nrr_pct','grr_pct','customer_count','customers_100k'],
+  'Cost Structure': ['share_based_comp','fixed_variable_split','headcount_cost_pct','top_cost_categories','cac_payback']
+};
+
+function updateProgress(step) {
+  [1,2,3,4].forEach(function(i) {
+    var num = document.getElementById('sn'+i);
+    var lbl = document.getElementById('sl'+i);
+    var line = document.getElementById('line'+i);
+    if (i < step) { num.className='step-num done'; lbl.className='step-label done'; if(line) line.className='step-line done'; }
+    else if (i === step) { num.className='step-num active'; lbl.className='step-label active'; if(line) line.className='step-line'; }
+    else { num.className='step-num'; lbl.className='step-label'; if(line) line.className='step-line'; }
+  });
+}
+
+function goToStep(n) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page'+n).classList.add('active');
+  updateProgress(n);
+  window.scrollTo(0,0);
+}
+
+function setAssessment(type) {
+  assessmentType = type;
+  document.getElementById('toggle-quick').classList.toggle('active', type==='quick');
+  document.getElementById('toggle-full').classList.toggle('active', type==='full');
+}
+
+function goToStep2() {
+  var required = ['ctx-industry','ctx-size','ctx-age','ctx-funding','ctx-period'];
+  var valid = true;
+  required.forEach(function(id) {
+    var el = document.getElementById(id);
+    var err = document.getElementById('err-' + id.replace('ctx-',''));
+    if (!el.value.trim()) { el.classList.add('invalid'); if(err) err.classList.add('show'); valid = false; }
+    else { el.classList.remove('invalid'); if(err) err.classList.remove('show'); }
+  });
+  if (!valid) return;
+  context = {
+    industry: document.getElementById('ctx-industry').value,
+    companySize: document.getElementById('ctx-size').value,
+    businessAge: document.getElementById('ctx-age').value,
+    fundingStage: document.getElementById('ctx-funding').value,
+    currentPeriod: document.getElementById('ctx-period').value,
+    priorPeriod: document.getElementById('ctx-prior').value,
+    knownPressures: document.getElementById('ctx-pressures').value
+  };
+  goToStep(2);
+}
+
+function handleDrag(e, type) { e.preventDefault(); document.getElementById(type+'-zone').classList.add('dragover'); }
+function handleDrop(e, type) {
+  e.preventDefault();
+  document.getElementById(type+'-zone').classList.remove('dragover');
+  var file = e.dataTransfer.files[0];
+  if (file) processFile(file, type);
+}
+function handleFile(e, type) { var file = e.target.files[0]; if (file) processFile(file, type); }
+function handlePaste(type) {
+  var text = document.getElementById(type+'-paste').value.trim();
+  if (text.length > 50) {
+    if (type === 'pl') { plData = { text: text, source: 'paste' }; document.getElementById('pl-zone').classList.add('uploaded'); document.getElementById('pl-status').innerHTML = '<span class="success">✓ Text ready for extraction</span>'; }
+    else { bsData = { text: text, source: 'paste' }; document.getElementById('bs-zone').classList.add('uploaded'); document.getElementById('bs-status').innerHTML = '<span class="success">✓ Text ready for extraction</span>'; }
+  }
+}
+
+function processFile(file, type) {
+  var zone = document.getElementById(type+'-zone');
+  var status = document.getElementById(type+'-status');
+  status.innerHTML = '<span>Reading file...</span>';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = '';
+    if (file.type === 'application/pdf') {
+      // For PDF, we'll pass the raw text extracted by the browser
+      // Since we can't run pdfjs here, ask user to paste if PDF fails
+      status.innerHTML = '<span class="success">✓ File loaded — will extract on analysis</span>';
+      zone.classList.add('uploaded');
+      if (type === 'pl') plData = { text: e.target.result, source: 'file', name: file.name };
+      else bsData = { text: e.target.result, source: 'file', name: file.name };
+    } else {
+      text = e.target.result;
+      status.innerHTML = '<span class="success">✓ ' + file.name + ' loaded</span>';
+      zone.classList.add('uploaded');
+      if (type === 'pl') plData = { text: text, source: 'file', name: file.name };
+      else bsData = { text: text, source: 'file', name: file.name };
+    }
+  };
+  if (file.type === 'application/pdf') reader.readAsDataURL(file);
+  else reader.readAsText(file);
+}
+
+async function goToStep3() {
+  goToStep(3);
+  var extractionDiv = document.getElementById('extraction-results');
+  var formDiv = document.getElementById('financial-form');
+  var sub = document.getElementById('step3-sub');
+
+  var extractedFields = {};
+  var hasPL = plData && (plData.text || document.getElementById('pl-paste').value.trim());
+  var hasBS = bsData && (bsData.text || document.getElementById('bs-paste').value.trim());
+
+  extractionDiv.innerHTML = '';
+
+  // Extract from documents if provided
+  if (hasPL || hasBS) {
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('loading-text').textContent = 'Extracting financial data...';
+    document.getElementById('loading-sub').textContent = 'Reading your documents';
+
+    if (hasPL) {
+      var plText = document.getElementById('pl-paste').value.trim() || (plData && plData.text) || '';
+      if (plText.startsWith('data:')) plText = 'PDF file uploaded — please also paste the text content for best extraction results.';
+      var plResult = await extractDocument(plText, 'P&L Statement');
+      if (plResult && plResult.extracted_fields) {
+        Object.assign(extractedFields, plResult.extracted_fields);
+        extractionDiv.innerHTML += renderExtractionResult(plResult, 'P&L Statement');
+      }
+    }
+
+    if (hasBS) {
+      var bsText = document.getElementById('bs-paste').value.trim() || (bsData && bsData.text) || '';
+      if (bsText.startsWith('data:')) bsText = 'PDF file uploaded — please also paste the text content for best extraction results.';
+      var bsResult = await extractDocument(bsText, 'Balance Sheet');
+      if (bsResult && bsResult.extracted_fields) {
+        Object.assign(extractedFields, bsResult.extracted_fields);
+        extractionDiv.innerHTML += renderExtractionResult(bsResult, 'Balance Sheet');
+      }
+    }
+
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  // Determine which fields to show
+  var fieldsToShow = assessmentType === 'quick' ? QUICK_FIELDS : FULL_FIELDS;
+  var missingFields = fieldsToShow.filter(function(f) {
+    return !extractedFields[f] && extractedFields[f] !== 0;
+  });
+
+  if (missingFields.length === 0 && (hasPL || hasBS)) {
+    sub.textContent = 'All fields extracted from your documents. Review and adjust if needed, then run the assessment.';
+  } else if (hasPL || hasBS) {
+    sub.textContent = 'Most fields extracted. Please fill in the remaining fields below.';
+  } else {
+    sub.textContent = 'No documents uploaded. Please enter your financial data below.';
+  }
+
+  // Render form
+  formDiv.innerHTML = renderForm(fieldsToShow, extractedFields);
+  window.extractedFields = extractedFields;
+}
+
+function renderExtractionResult(result, docType) {
+  var found = result.fields_found || 0;
+  var total = result.fields_total || 28;
+  var conf = result.confidence || 'Medium';
+  var cls = conf === 'High' ? '' : conf === 'Medium' ? ' warning' : ' error';
+  var confBadge = '<span class="confidence-badge confidence-' + conf.toLowerCase() + '">' + conf + ' confidence</span>';
+  return '<div class="extraction-result' + cls + '">' +
+    '<div class="extraction-title">✓ ' + docType + ' extracted — ' + found + ' of ' + total + ' fields found ' + confBadge + '</div>' +
+    (result.notes ? '<div class="extraction-fields">' + result.notes + '</div>' : '') +
+    '</div>';
+}
+
+function renderForm(fields, extracted) {
+  var html = '';
+  var sections = FIELD_SECTIONS;
+  var sectionKeys = Object.keys(sections);
+
+  sectionKeys.forEach(function(section) {
+    var sectionFields = sections[section].filter(function(f) { return fields.indexOf(f) >= 0; });
+    if (sectionFields.length === 0) return;
+
+    html += '<div class="section-label">' + section + '</div>';
+    html += '<div class="form-grid">';
+
+    sectionFields.forEach(function(key) {
+      var def = FIELD_DEFS[key];
+      if (!def) return;
+      var extractedVal = extracted[key];
+      var isExtracted = extractedVal !== null && extractedVal !== undefined && extractedVal !== '';
+
+      html += '<div class="field' + (def.type === 'text' ? ' full' : '') + '">';
+      html += '<label>' + def.label + (def.req ? '<span class="req">*</span>' : '') + (isExtracted ? ' <span style="font-size:11px;color:#16A34A;font-weight:500">✓ extracted</span>' : '') + '</label>';
+
+      if (def.type === 'select') {
+        html += '<select id="f-' + key + '">';
+        html += '<option value="">Select...</option>';
+        (def.options || []).forEach(function(opt) { html += '<option' + (extractedVal === opt ? ' selected' : '') + '>' + opt + '</option>'; });
+        html += '</select>';
+      } else {
+        html += '<input type="' + (def.type === 'number' ? 'number' : 'text') + '" id="f-' + key + '" placeholder="' + (def.prefix || '') + (def.hint || '') + (def.suffix ? ' ' + def.suffix : '') + '" value="' + (extractedVal !== null && extractedVal !== undefined ? extractedVal : '') + '"' + (isExtracted ? ' style="border-color:#86EFAC;background:#F0FDF4"' : '') + '>';
+      }
+      if (def.hint && def.type !== 'number') html += '<span class="hint">' + def.hint + '</span>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  return html;
+}
+
+async function extractDocument(text, docType) {
+  try {
+    var resp = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentText: text, documentType: docType })
+    });
+    return await resp.json();
+  } catch(e) { return null; }
+}
+
+async function runAssessment() {
+  // Collect all field values
+  var fieldsToShow = assessmentType === 'quick' ? QUICK_FIELDS : FULL_FIELDS;
+  var financialData = { confidence: 'Medium' };
+
+  fieldsToShow.forEach(function(key) {
+    var el = document.getElementById('f-' + key);
+    if (el) {
+      var val = el.value.trim();
+      financialData[key] = val !== '' ? (el.type === 'number' ? parseFloat(val) : val) : null;
+    }
+  });
+
+  // Add extracted data
+  if (window.extractedFields) Object.assign(financialData, window.extractedFields);
+
+  // Count filled fields for confidence
+  var filled = Object.values(financialData).filter(function(v) { return v !== null && v !== undefined && v !== ''; }).length;
+  var total = fieldsToShow.length;
+  financialData.confidence = filled >= total * 0.75 ? 'High' : filled >= total * 0.5 ? 'Medium' : 'Low';
+
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loading-text').textContent = 'Running financial health assessment...';
+  document.getElementById('loading-sub').textContent = 'Benchmarking against ' + context.industry + ' industry norms';
+
+  try {
+    var resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: context, financialData: financialData, assessmentType: assessmentType })
+    });
+    assessmentResult = await resp.json();
+    if (assessmentResult.error) throw new Error(assessmentResult.error);
+
+    document.getElementById('loading').style.display = 'none';
+    renderResults();
+    goToStep(4);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    alert('Assessment failed: ' + e.message + '. Please try again.');
+  }
+}
+
+function getRatingClass(rating) {
+  if (!rating) return '';
+  return 'color-' + rating.toLowerCase().replace(' ','-').replace('at risk','at-risk');
+}
+
+function getScoreClass(rating) {
+  if (!rating) return 'score-moderate';
+  return 'score-' + rating.toLowerCase().replace(' ','-').replace('at risk','at-risk');
+}
+
+function getTrendHTML(trend, detail) {
+  if (!trend || trend === 'No prior data') return '<span class="trend-stable">— No prior data</span>';
+  if (trend === 'Improving') return '<span class="trend-up">↑ Improving' + (detail ? ' ' + detail : '') + '</span>';
+  if (trend === 'Declining') return '<span class="trend-down">↓ Declining' + (detail ? ' ' + detail : '') + '</span>';
+  return '<span class="trend-stable">→ Stable</span>';
+}
+
+function renderResults() {
+  var r = assessmentResult;
+  var cats = r.categories || {};
+  var catNames = { liquidity: 'Liquidity', profitability: 'Profitability', solvency: 'Solvency', revenue_health: 'Revenue Health', cost_structure: 'Cost Structure' };
+
+  // Calculate Rule of 40
+  var revGrowth = parseFloat(document.getElementById('f-revenue_growth_pct') ? document.getElementById('f-revenue_growth_pct').value : 0) || 0;
+  var opMargin = parseFloat(document.getElementById('f-operating_margin_pct') ? document.getElementById('f-operating_margin_pct').value : 0) || 0;
+  var rule40 = revGrowth + opMargin;
+  var rule40Color = rule40 >= 40 ? '#16A34A' : rule40 >= 20 ? '#B45309' : '#DC2626';
+
+  var html = '';
+
+  // Header
+  html += '<div class="card">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.5rem">';
+  html += '<div><div class="card-title">Financial Health Report</div>';
+  html += '<div style="font-size:14px;color:#64748B">' + context.industry + ' · ' + context.companySize + ' · ' + context.currentPeriod + '</div></div>';
+  html += '<span class="confidence-badge confidence-' + (r.data_confidence||'medium').toLowerCase() + '">Assessment confidence: ' + (r.data_confidence||'Medium') + '</span>';
+  html += '</div>';
+
+  // Overall score
+  html += '<div style="text-align:center;margin-bottom:1.5rem">';
+  html += '<div class="score-circle ' + getScoreClass(r.overall_rating) + '">';
+  html += '<div class="score-number">' + (r.overall_score||0) + '</div>';
+  html += '<div class="score-label">/ 100</div></div>';
+  html += '<div style="font-size:20px;font-weight:700;' + 'color:' + (r.overall_score >= 75 ? '#16A34A' : r.overall_score >= 50 ? '#B45309' : '#DC2626') + '">' + (r.overall_rating||'') + '</div>';
+  html += '</div>';
+
+  // Executive summary
+  html += '<div class="executive-summary">';
+  html += '<div class="exec-label">Executive Summary</div>';
+  html += '<div class="exec-text">' + (r.executive_summary||'') + '</div>';
+  html += '</div>';
+
+  // Rule of 40
+  if (revGrowth || opMargin) {
+    html += '<div class="rule40">';
+    html += '<div class="rule40-score" style="color:' + rule40Color + '">' + rule40.toFixed(0) + '</div>';
+    html += '<div class="rule40-text"><strong>Rule of 40</strong> — Revenue growth (' + revGrowth + '%) + Operating margin (' + opMargin + '%). ';
+    html += rule40 >= 40 ? '<span style="color:#16A34A">Above 40 — healthy SaaS efficiency.</span>' : rule40 >= 20 ? '<span style="color:#B45309">Below 40 — efficiency improvement needed.</span>' : '<span style="color:#DC2626">Significantly below 40 — immediate attention needed.</span>';
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+
+  // Category scores
+  html += '<div class="card">';
+  html += '<div class="section-label">Category scores</div>';
+  html += '<div class="category-grid">';
+  Object.keys(catNames).forEach(function(key) {
+    var cat = cats[key] || {};
+    html += '<div class="category-card">';
+    html += '<div class="category-name">' + catNames[key] + '</div>';
+    html += '<div class="category-score ' + getRatingClass(cat.rating) + '">' + (cat.score||'—') + '</div>';
+    html += '<div class="category-benchmark" style="font-size:11px">' + (cat.benchmark||'') + '</div>';
+    html += '<div class="category-trend">' + getTrendHTML(cat.trend, cat.trend_detail) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Key insights per category
+  Object.keys(catNames).forEach(function(key) {
+    var cat = cats[key] || {};
+    if (!cat.key_insight) return;
+    html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #F1F5F9">';
+    html += '<span style="font-size:13px;font-weight:600;color:#64748B;min-width:110px">' + catNames[key] + '</span>';
+    html += '<span style="font-size:14px;color:#334155">' + cat.key_insight + '</span>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+
+  // Metrics detail
+  html += '<div class="card">';
+  html += '<div class="section-label">Key metrics</div>';
+  var tabs = '<div class="tabs">';
+  Object.keys(catNames).forEach(function(key, i) {
+    tabs += '<div class="tab' + (i===0?' active':'') + '" onclick="switchTab(this,\'tab-'+key+'\')">' + catNames[key] + '</div>';
+  });
+  tabs += '</div>';
+  html += tabs;
+  Object.keys(catNames).forEach(function(key, i) {
+    var cat = cats[key] || {};
+    html += '<div class="tab-content' + (i===0?' active':'') + '" id="tab-'+key+'">';
+    (cat.metrics||[]).forEach(function(m) {
+      html += '<div class="metric-row">';
+      html += '<span class="metric-name">' + m.name + '</span>';
+      html += '<div style="text-align:right"><div class="metric-value status-' + (m.status||'watch').toLowerCase() + '">' + m.value + '</div>';
+      html += '<div class="metric-benchmark">' + (m.benchmark||'') + '</div></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Risks
+  html += '<div class="card">';
+  html += '<div class="section-label">Top risks</div>';
+  (r.top_risks||[]).forEach(function(risk) {
+    html += '<div class="risk-item">';
+    html += '<span class="risk-severity severity-' + (risk.severity||'medium').toLowerCase() + '">' + (risk.severity||'') + '</span>';
+    html += '<div><div class="risk-text">' + risk.risk + '</div>';
+    html += '<div style="font-size:12px;color:#94A3B8">' + (risk.category||'') + '</div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Recommendations
+  html += '<div class="card">';
+  html += '<div class="section-label">Recommendations</div>';
+  (r.top_recommendations||[]).forEach(function(rec, i) {
+    html += '<div class="rec-item">';
+    html += '<div class="rec-num">' + (i+1) + '</div>';
+    html += '<div class="rec-content"><div class="rec-text">' + rec.action + '</div>';
+    html += '<div class="rec-meta">' + (rec.priority||'') + ' · ' + (rec.impact||'') + ' impact</div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('results-content').innerHTML = html;
+}
+
+function switchTab(el, tabId) {
+  el.closest('.card').querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  el.closest('.card').querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function startOver() {
+  plData = null; bsData = null; assessmentResult = null; context = {};
+  document.getElementById('pl-paste').value = '';
+  document.getElementById('bs-paste').value = '';
+  document.getElementById('pl-zone').className = 'upload-zone';
+  document.getElementById('bs-zone').className = 'upload-zone';
+  document.getElementById('pl-status').innerHTML = '';
+  document.getElementById('bs-status').innerHTML = '';
+  goToStep(1);
+}
+
+function downloadReport() {
+  if (!window.jspdf || !window.jspdf.jsPDF) { alert('PDF library not loaded. Please try again.'); return; }
+  if (!assessmentResult) { alert('No assessment to download.'); return; }
+  try {
+    var doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var r = assessmentResult;
+    var W = 210; var margin = 15; var contentW = W - margin*2; var y = 20;
+    var navy = [10,22,40]; var indigo = [79,70,229]; var white = [255,255,255];
+    var darkGray = [30,41,59]; var midGray = [100,116,139]; var lightGray = [241,245,249];
+    var green = [22,163,74]; var amber = [180,83,9]; var red = [220,38,38];
+
+    var catNames = { liquidity: 'Liquidity', profitability: 'Profitability', solvency: 'Solvency', revenue_health: 'Revenue Health', cost_structure: 'Cost Structure' };
+
+    function checkY(need) { if (y + need > 270) { doc.addPage(); y = 20; addHeader(); } }
+    function addHeader() {
+      doc.setFillColor.apply(doc, navy);
+      doc.rect(0, 0, W, 12, 'F');
+      doc.setTextColor.apply(doc, white);
+      doc.setFontSize(8);
+      doc.setFont('helvetica','bold');
+      doc.text('FINANCIAL HEALTH CHECKER · RESULT CATALYST', margin, 8);
+      doc.text('© 2026 Chandana Suggala. All rights reserved.', W-margin, 8, {align:'right'});
+    }
+
+    // Cover page
+    doc.setFillColor.apply(doc, navy);
+    doc.rect(0,0,W,297,'F');
+    doc.setTextColor.apply(doc, white);
+    doc.setFontSize(26); doc.setFont('helvetica','bold');
+    doc.text('FINANCIAL', margin, 80);
+    doc.text('HEALTH REPORT', margin, 94);
+    doc.setFillColor.apply(doc, indigo);
+    doc.rect(0,98,W,3,'F');
+    doc.setFontSize(11); doc.setFont('helvetica','normal');
+    doc.setTextColor(147,197,253);
+    doc.text(context.industry + ' · ' + context.companySize + ' · ' + context.currentPeriod, margin, 108);
+    doc.setFontSize(9);
+    doc.text('Generated by Result Catalyst Financial Health Checker', margin, 118);
+    doc.text(new Date().toLocaleDateString(), margin, 126);
+
+    // Score box
+    doc.setFillColor(16,32,54);
+    doc.roundedRect(margin, 145, contentW, 55, 3, 3, 'F');
+    var scoreColor = r.overall_score >= 75 ? green : r.overall_score >= 50 ? amber : red;
+    doc.setTextColor.apply(doc, scoreColor);
+    doc.setFontSize(48); doc.setFont('helvetica','bold');
+    doc.text(String(r.overall_score||0), margin+15, 178);
+    doc.setFontSize(12);
+    doc.text('/100', margin+35, 178);
+    doc.setFontSize(14);
+    doc.text(r.overall_rating||'', margin+55, 170);
+    doc.setTextColor(147,197,253);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('Assessment confidence: ' + (r.data_confidence||'Medium'), margin+55, 180);
+
+    // Category scores on cover
+    var cats = r.categories || {};
+    var catKeys = Object.keys(catNames);
+    doc.setFillColor(16,32,54);
+    doc.roundedRect(margin, 210, contentW, 35, 3, 3, 'F');
+    catKeys.forEach(function(key, i) {
+      var cat = cats[key] || {};
+      var cx = margin + 5 + i * (contentW/5);
+      var catScore = cat.score || 0;
+      var catColor = catScore >= 75 ? green : catScore >= 50 ? amber : red;
+      doc.setTextColor.apply(doc, catColor);
+      doc.setFontSize(16); doc.setFont('helvetica','bold');
+      doc.text(String(catScore), cx, 228, {align:'center'});
+      doc.setTextColor(147,197,253);
+      doc.setFontSize(7); doc.setFont('helvetica','normal');
+      doc.text(catNames[key], cx, 236, {align:'center'});
+    });
+
+    doc.setFillColor(16,32,54);
+    doc.roundedRect(margin, 255, contentW, 22, 3, 3, 'F');
+    doc.setTextColor(147,197,253);
+    doc.setFontSize(8);
+    doc.text('Built by Chandana Suggala · Result Catalyst · financialhealth.resultcatalyst.com', W/2, 268, {align:'center'});
+
+    // Page 2 — Executive Summary + Categories
+    doc.addPage(); y = 20; addHeader(); y = 22;
+
+    doc.setTextColor.apply(doc, navy);
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.text('EXECUTIVE SUMMARY', margin, y); y += 8;
+    doc.setFillColor(238,242,255);
+    doc.roundedRect(margin, y, contentW, 30, 2, 2, 'F');
+    doc.setTextColor.apply(doc, darkGray);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    var sumLines = doc.splitTextToSize(r.executive_summary||'', contentW-8);
+    sumLines.forEach(function(line) { doc.text(line, margin+4, y+7); y += 5; });
+    y += 16;
+
+    doc.setTextColor.apply(doc, navy);
+    doc.setFontSize(12); doc.setFont('helvetica','bold');
+    doc.text('CATEGORY SCORES', margin, y); y += 6;
+
+    doc.autoTable({
+      startY: y,
+      head: [['Category','Score','Rating','Benchmark','Trend','Key Insight']],
+      body: catKeys.map(function(key) {
+        var cat = cats[key]||{};
+        return [catNames[key], (cat.score||'—')+'/100', cat.rating||'—', cat.benchmark||'—', cat.trend||'—', cat.key_insight||'—'];
+      }),
+      theme: 'grid',
+      headStyles: { fillColor: navy, textColor: white, fontSize: 7, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 7, textColor: darkGray },
+      alternateRowStyles: { fillColor: lightGray },
+      columnStyles: { 0:{cellWidth:28}, 1:{cellWidth:16,halign:'center'}, 2:{cellWidth:22,halign:'center'}, 3:{cellWidth:26,halign:'center'}, 4:{cellWidth:20,halign:'center'}, 5:{cellWidth:contentW-112} },
+      margin: { left:margin, right:margin }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+
+    // Risks & Recommendations
+    checkY(20);
+    doc.setTextColor.apply(doc, navy);
+    doc.setFontSize(12); doc.setFont('helvetica','bold');
+    doc.text('TOP RISKS', margin, y); y += 6;
+    doc.autoTable({
+      startY: y,
+      head: [['Severity','Category','Risk']],
+      body: (r.top_risks||[]).map(function(risk) { return [risk.severity||'—', risk.category||'—', risk.risk||'—']; }),
+      theme: 'grid',
+      headStyles: { fillColor: [220,38,38], textColor: white, fontSize: 7, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 7, textColor: darkGray },
+      columnStyles: { 0:{cellWidth:20,halign:'center'}, 1:{cellWidth:30,halign:'center'}, 2:{cellWidth:contentW-50} },
+      margin: { left:margin, right:margin }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+
+    checkY(20);
+    doc.setTextColor.apply(doc, navy);
+    doc.setFontSize(12); doc.setFont('helvetica','bold');
+    doc.text('RECOMMENDATIONS', margin, y); y += 6;
+    doc.autoTable({
+      startY: y,
+      head: [['#','Priority','Impact','Action']],
+      body: (r.top_recommendations||[]).map(function(rec,i) { return [i+1, rec.priority||'—', rec.impact||'—', rec.action||'—']; }),
+      theme: 'grid',
+      headStyles: { fillColor: indigo, textColor: white, fontSize: 7, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 7, textColor: darkGray },
+      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:25,halign:'center'}, 2:{cellWidth:20,halign:'center'}, 3:{cellWidth:contentW-53} },
+      margin: { left:margin, right:margin }
+    });
+
+    doc.save('Financial-Health-Report-' + context.currentPeriod.replace(/\s/g,'-') + '.pdf');
+  } catch(e) { alert('PDF generation failed: ' + e.message); }
+}
+</script>
+</body>
+</html>
